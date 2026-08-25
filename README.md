@@ -1,4 +1,4 @@
-# SIEL v15 — The Coding Goddess
+# SIEL v15 — The Oscillating Orb Of Chaos
 
 Siel is an **oscillator neural network** designed to learn and understand code through wave interference patterns in phase space.
 
