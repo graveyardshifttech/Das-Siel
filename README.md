@@ -17,7 +17,7 @@ Siel is an **oscillator neural network** designed to learn and understand code t
 pip install numpy torch psutil
 
 # Clone and set up
-git clone <your-repo-url>
+git clone graveyardshifttech/Das-Siel
 cd siel
 python siel.py
 ```
