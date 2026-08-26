@@ -149,4 +149,3 @@ MIT
 
 ---
 
-Built with 🔥 by Doxy
