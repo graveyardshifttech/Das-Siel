@@ -21,6 +21,7 @@ import time
 import json
 import random
 import pickle
+import hashlib
 import gc
 import math
 from collections import deque, defaultdict
@@ -215,7 +216,6 @@ class MCTSNode:
         """Mean value of the node."""
         return self.total_value / max(1, self.visit_count)
     
-    @property
     def ucb_score(self, exploration_constant: float = 1.414) -> float:
         """Upper Confidence Bound score."""
         if self.visit_count == 0:
@@ -288,7 +288,6 @@ class MCTSNode:
         """Mean value of the node."""
         return self.total_value / max(1, self.visit_count)
     
-    @property
     def ucb_score(self, exploration_constant: float = 1.414) -> float:
         """Upper Confidence Bound score."""
         if self.visit_count == 0:
@@ -878,9 +877,15 @@ class Trainer:
         # ─── ATTENTION ────────────────────────────────────────────────────
         self.use_attention = use_attention
         if self.use_attention:
-            self.attention = PhaseAttention(n_osc=n_osc, n_heads=8, dim=512, dropout=0.1).to(self.device)
+            # Attention operates on one projected global feature token. The
+            # readout still receives the original per-oscillator features.
+            self.attention_input = nn.Linear(n_osc * 2, 512, device=self.device)
+            self.attention = PhaseAttention(n_osc=1, n_heads=8, dim=512, dropout=0.1).to(self.device)
+            self.attention_output = nn.Linear(512, n_osc * 2, device=self.device)
         else:
+            self.attention_input = None
             self.attention = None
+            self.attention_output = None
         
         # ─── MCTS ─────────────────────────────────────────────────────────
         self.use_mcts = use_mcts
@@ -892,7 +897,7 @@ class Trainer:
         # ─── OPTIMIZER ────────────────────────────────────────────────────
         all_params = [self.W_edges, self.readout]
         if self.attention:
-            all_params.append(self.attention)
+            all_params += [self.attention_input, self.attention, self.attention_output]
         
         self.optimizer = torch.optim.Adam(
             [p for module in all_params for p in (module.parameters() if isinstance(module, nn.Module) else [module])],
@@ -1127,10 +1132,10 @@ class Trainer:
         
         # Attention
         if self.use_attention and self.attention:
-            features_expanded = features.unsqueeze(1) if features.dim() == 2 else features
-            features, _ = self.attention(new_phases, features_expanded)
-            if features.dim() > 2:
-                features = features.squeeze(1)
+            attention_features = self.attention_input(features).unsqueeze(1)
+            attention_phases = new_phases.mean(dim=1, keepdim=True)
+            attention_features, _ = self.attention(attention_phases, attention_features)
+            features = self.attention_output(attention_features.squeeze(1))
         
         # Readout
         logits = self.readout(features)
@@ -1177,7 +1182,11 @@ class Trainer:
             
             all_params = [self.W_edges] + list(self.readout.parameters())
             if self.attention:
-                all_params += list(self.attention.parameters())
+                all_params += (
+                    list(self.attention_input.parameters()) +
+                    list(self.attention.parameters()) +
+                    list(self.attention_output.parameters())
+                )
             
             if not self.stability.check_gradients(all_params):
                 self.optimizer.zero_grad()
