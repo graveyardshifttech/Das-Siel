@@ -7,12 +7,12 @@ from typing import Tuple, Dict, List, Optional
 from collections import deque
 
 try:
-    from ..config import CONFIG
+    from config import CONFIG
 except ImportError:
     from config import CONFIG
 
 try:
-    from ..core.wave import WaveField
+    from core.wave import WaveField
 except ImportError:
     from core.wave import WaveField
 
