@@ -18,7 +18,7 @@ pip install numpy torch psutil
 
 # Clone and set up
 git clone https://github.com/graveyardshifttech/Das-Siel
-cd siel
+cd siel_rebuild
 python siel.py
 ```
 
